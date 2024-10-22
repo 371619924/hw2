@@ -5,6 +5,8 @@
 #include <fstream>
 #include <filesystem>
 #include <signal.h>
+#include <algorithm>
+#include <map>
 
 unsigned int abort_port = 0;
 
@@ -172,11 +174,41 @@ void WebServer::RegisterHandler(std::string path, std::function<void(HTTPRequest
 // There will alwasy be A responder for "/" in the configuration.
 void WebServer::DispatchResponse(HTTPRequest &request, HTTPResponder &responder)
 {
-    (void)request;
-    (void)responder;
-    HERE();
+    // 获取请求的资源
+    std::string path = request.get_resource();
 
+    // 检查路径是否以 "/" 开头
+    if (path.empty() || path[0] != '/') {
+        respondError(request, responder);  // 如果路径不正确，返回错误响应
+        return;
+    }
+
+    // 查找处理函数
+    auto handler = handlerFunctions.find(path);
+    if (handler != handlerFunctions.end()) {
+        // 调用找到的处理函数
+        handler->second(request, responder);
+        return;
+    }
+
+    // 查找父路径的处理函数
+    std::string foundPath = "";
+    for (size_t i = path.size(); i > 0; --i) {
+        if (path[i - 1] == '/') {
+            foundPath = path.substr(0, i);
+            handler = handlerFunctions.find(foundPath);
+            if (handler != handlerFunctions.end()) {
+                handler->second(request, responder);
+                return;
+            }
+        }
+    }
+
+    // 返回 404 响应
+    respondNotFound(request, responder);
 }
+
+
 
 // You don't need to change this function, but it is
 // another one you should understand.
@@ -270,9 +302,37 @@ void respondError(HTTPRequest &r, HTTPResponder &resp)
 // std::map<std::string, std::string> foo = {{"a", "one"}, {"b", "two"}};
 std::string mimetype(std::string filename)
 {
-    (void)filename;
-    HERE();
-    return "";
+    // 创建一个 MIME 类型映射表
+    static const std::map<std::string, std::string> mime_types = {
+        {".htm", "text/html"},
+        {".html", "text/html"},
+        {".gif", "image/gif"},
+        {".jpg", "image/jpeg"},
+        {".jpeg", "image/jpeg"},
+        {".png", "image/png"},
+        {".svg", "image/svg+xml"},
+        {".txt", "text/plain"}
+    };
+
+    // 找到最后一个点的位置
+    std::size_t dot_pos = filename.find_last_of(".");
+    if (dot_pos == std::string::npos) {
+        // 如果没有找到点，返回二进制流类型
+        return "application/octet-stream";
+    }
+
+    // 获取扩展名，忽略大小写
+    std::string extension = filename.substr(dot_pos);
+    std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower); // 转换为小写
+
+    // 查找扩展名对应的 MIME 类型
+    auto it = mime_types.find(extension);
+    if (it != mime_types.end()) {
+        return it->second; // 返回找到的 MIME 类型
+    }
+
+    // 如果没有找到，返回默认的二进制流类型
+    return "application/octet-stream";
 }
 
 // This is the final major function you need to write.
@@ -298,9 +358,56 @@ std::function<void(HTTPRequest &, HTTPResponder &)> generateFileResponder(std::s
 {
     return [=](HTTPRequest &request, HTTPResponder &responder)
     {
-        (void)request;
-        (void)responder;
-        (void)path;
-        HERE();
+        std::string resource = request.get_resource();
+
+        // 检查路径是否以 "/" 开头
+        if (resource.empty() || resource[0] != '/') {
+            respondError(request, responder);
+            return;
+        }
+
+        // 如果路径以 "/" 结尾，则添加 "index.html"
+        if (resource.back() == '/') {
+            resource += "index.html";
+        }
+
+        // 检查是否包含 "/../"
+        if (resource.find("/../") != std::string::npos) {
+            respondForbidden(request, responder);
+            return;
+        }
+
+        // 创建完整的文件路径
+        std::string fullPath = path + resource;
+
+        // 检查文件是否存在
+        if (!std::filesystem::exists(fullPath)) {
+            respondNotFound(request, responder);
+            return;
+        }
+
+        // 打开文件并读取内容
+        std::ifstream file(fullPath, std::ios::binary);
+        if (!file.good()) {
+            respondNotFound(request, responder);
+            return;
+        }
+
+        std::stringstream buffer;
+        buffer << file.rdbuf(); // 读取文件内容到缓冲区
+        std::string fileContent = buffer.str(); // 获取文件内容
+
+        // 构建响应字符串
+        std::ostringstream response;
+        response << "HTTP/1.1 200 OK\r\n"; // 状态行
+        response << "Content-Type: " << mimetype(fullPath) << "\r\n"; // Content-Type
+        response << "Content-Length: " << fileContent.size() << "\r\n"; // Content-Length
+        response << "\r\n"; // 空行结束头部
+        response << fileContent; // 文件内容
+
+        // 发送响应
+        std::string finalResponse = response.str(); // 获取最终响应字符串
+        responder.sendResponse(finalResponse, HTTPResponder::OK); // 发送包含头部和内容的响应
     };
 }
+
