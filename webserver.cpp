@@ -172,14 +172,20 @@ void WebServer::RegisterHandler(std::string path, std::function<void(HTTPRequest
 // "/this/is/", "/this/", and "/" and use the first one found.
 
 // There will alwasy be A responder for "/" in the configuration.
-void WebServer::DispatchResponse(HTTPRequest &request, HTTPResponder &responder)
-{
+void WebServer::DispatchResponse(HTTPRequest &request, HTTPResponder &responder) {
     // 获取请求的资源
     std::string path = request.get_resource();
 
     // 检查路径是否以 "/" 开头
     if (path.empty() || path[0] != '/') {
         respondError(request, responder);  // 如果路径不正确，返回错误响应
+        return;
+    }
+
+    // 处理 "/webslobber" 路径
+    if (path == "/webslobber") {
+        std::string payload = "<html><body><h1>Webslobber</h1></body></html>";
+        responder.sendResponse(payload, HTTPResponder::OK); // 确保发送正确的响应
         return;
     }
 
@@ -207,6 +213,9 @@ void WebServer::DispatchResponse(HTTPRequest &request, HTTPResponder &responder)
     // 返回 404 响应
     respondNotFound(request, responder);
 }
+
+
+
 
 
 
@@ -354,10 +363,8 @@ std::string mimetype(std::string filename)
 // Then you can create a stringstream as a buffer, and read in all the data and then get
 // the std::string from the stringstream...
 
-std::function<void(HTTPRequest &, HTTPResponder &)> generateFileResponder(std::string path)
-{
-    return [=](HTTPRequest &request, HTTPResponder &responder)
-    {
+std::function<void(HTTPRequest &, HTTPResponder &)> generateFileResponder(std::string path) {
+    return [=](HTTPRequest &request, HTTPResponder &responder) {
         std::string resource = request.get_resource();
 
         // 检查路径是否以 "/" 开头
@@ -397,6 +404,12 @@ std::function<void(HTTPRequest &, HTTPResponder &)> generateFileResponder(std::s
         buffer << file.rdbuf(); // 读取文件内容到缓冲区
         std::string fileContent = buffer.str(); // 获取文件内容
 
+        // 检查文件内容是否为空
+        if (fileContent.empty()) {
+            respondNotFound(request, responder);
+            return;
+        }
+
         // 构建响应字符串
         std::ostringstream response;
         response << "HTTP/1.1 200 OK\r\n"; // 状态行
@@ -410,4 +423,3 @@ std::function<void(HTTPRequest &, HTTPResponder &)> generateFileResponder(std::s
         responder.sendResponse(finalResponse, HTTPResponder::OK); // 发送包含头部和内容的响应
     };
 }
-
