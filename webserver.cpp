@@ -410,16 +410,11 @@ std::function<void(HTTPRequest &, HTTPResponder &)> generateFileResponder(std::s
             return;
         }
 
-        // 构建响应字符串
-        std::ostringstream response;
-        response << "HTTP/1.1 200 OK\r\n"; // 状态行
-        response << "Content-Type: " << mimetype(fullPath) << "\r\n"; // Content-Type
-        response << "Content-Length: " << fileContent.size() << "\r\n"; // Content-Length
-        response << "\r\n"; // 空行结束头部
-        response << fileContent; // 文件内容
+        // **设置 Content-Type 到 responder.headers 中**
+        std::string mimeType = mimetype(fullPath);
+        responder.headers["Content-Type"] = mimeType;
 
         // 发送响应
-        std::string finalResponse = response.str(); // 获取最终响应字符串
-        responder.sendResponse(finalResponse, HTTPResponder::OK); // 发送包含头部和内容的响应
+        responder.sendResponse(fileContent, HTTPResponder::OK);
     };
 }
