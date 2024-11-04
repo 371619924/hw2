@@ -172,45 +172,44 @@ void WebServer::RegisterHandler(std::string path, std::function<void(HTTPRequest
 // "/this/is/", "/this/", and "/" and use the first one found.
 
 // There will alwasy be A responder for "/" in the configuration.
-void WebServer::DispatchResponse(HTTPRequest &request, HTTPResponder &responder) {
-    // 获取请求的资源
+void WebServer::DispatchResponse(HTTPRequest &request, HTTPResponder &responder) {  // Retrieve the resource from the request 
     std::string path = request.get_resource();
-
-    // 检查路径是否以 "/" 开头
+    // Check if the path is empty or does not start with "/"
     if (path.empty() || path[0] != '/') {
-        respondError(request, responder);  // 如果路径不正确，返回错误响应
+        respondError(request, responder);  // If the path is incorrect, return an error response
         return;
     }
 
-    // 处理 "/webslobber" 路径
+    // Handle the webslobber path
     if (path == "/webslobber") {
         std::string payload = "<html><body><h1>Webslobber</h1></body></html>";
-        responder.sendResponse(payload, HTTPResponder::OK); // 确保发送正确的响应
+        responder.sendResponse(payload, HTTPResponder::OK); // Ensure the correct response is sent
         return;
     }
 
-    // 查找处理函数
+    // Look up the handler function for the requested path
     auto handler = handlerFunctions.find(path);
     if (handler != handlerFunctions.end()) {
-        // 调用找到的处理函数
+        // Call the found handler function
         handler->second(request, responder);
         return;
     }
 
-    // 查找父路径的处理函数
+    // Search for the handler function for the parent path
     std::string foundPath = "";
     for (size_t i = path.size(); i > 0; --i) {
+        // Check for the last '/' in the path
         if (path[i - 1] == '/') {
-            foundPath = path.substr(0, i);
-            handler = handlerFunctions.find(foundPath);
+            foundPath = path.substr(0, i);  // Extract the parent path
+            handler = handlerFunctions.find(foundPath);  // Look for a handler for the parent path
             if (handler != handlerFunctions.end()) {
-                handler->second(request, responder);
+                handler->second(request, responder); // Call the found handler function
                 return;
             }
         }
     }
 
-    // 返回 404 响应
+    // Return a 404 response if no handler was found
     respondNotFound(request, responder);
 }
 
@@ -311,7 +310,7 @@ void respondError(HTTPRequest &r, HTTPResponder &resp)
 // std::map<std::string, std::string> foo = {{"a", "one"}, {"b", "two"}};
 std::string mimetype(std::string filename)
 {
-    // 创建一个 MIME 类型映射表
+    // 创建一个 MIME 类型映射表, 
     static const std::map<std::string, std::string> mime_types = {
         {".htm", "text/html"},
         {".html", "text/html"},
@@ -367,13 +366,13 @@ std::function<void(HTTPRequest &, HTTPResponder &)> generateFileResponder(std::s
     return [=](HTTPRequest &request, HTTPResponder &responder) {
         std::string resource = request.get_resource();
 
-        // 检查路径是否以 "/" 开头
+        // Check路径是否以 "/" 开头
         if (resource.empty() || resource[0] != '/') {
             respondError(request, responder);
             return;
         }
 
-        // 如果路径以 "/" 结尾，则添加 "index.html"
+        // 如果路径以 "/" 结尾，则添加 "index.html" 
         if (resource.back() == '/') {
             resource += "index.html";
         }
@@ -384,7 +383,7 @@ std::function<void(HTTPRequest &, HTTPResponder &)> generateFileResponder(std::s
             return;
         }
 
-        // 创建完整的文件路径
+        // 创建完整的文件路径 complete 
         std::string fullPath = path + resource;
 
         // 检查文件是否存在
@@ -410,7 +409,7 @@ std::function<void(HTTPRequest &, HTTPResponder &)> generateFileResponder(std::s
             return;
         }
 
-        // **设置 Content-Type 到 responder.headers 中**
+        // New try:设置 Content-Type 到 responder.headers 中
         std::string mimeType = mimetype(fullPath);
         responder.headers["Content-Type"] = mimeType;
 
