@@ -309,40 +309,34 @@ void respondError(HTTPRequest &r, HTTPResponder &resp)
 
 // A hint:  You can create a static map of standard strings by
 // std::map<std::string, std::string> foo = {{"a", "one"}, {"b", "two"}};
-std::string mimetype(std::string filename)
-{
-    // 创建一个 MIME 类型映射表
-    static const std::map<std::string, std::string> mime_types = {
-        {".htm", "text/html"},
-        {".html", "text/html"},
-        {".gif", "image/gif"},
-        {".jpg", "image/jpeg"},
-        {".jpeg", "image/jpeg"},
-        {".png", "image/png"},
-        {".svg", "image/svg+xml"},
-        {".txt", "text/plain"}
-    };
-
-    // 找到最后一个点的位置
-    std::size_t dot_pos = filename.find_last_of(".");
-    if (dot_pos == std::string::npos) {
-        // 如果没有找到点，返回二进制流类型
-        return "application/octet-stream";
+std::string mimetype(const std::string filename) {
+    // 从右侧开始查找 '.'，提取文件扩展名
+    size_t dotPos = filename.rfind('.');
+    if (dotPos == std::string::npos) {
+        return "application/octet-stream";  // 无扩展名时默认类型
     }
 
-    // 获取扩展名，忽略大小写
-    std::string extension = filename.substr(dot_pos);
-    std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower); // 转换为小写
+    std::string extension = filename.substr(dotPos + 1);
+    if (extension == "html" || extension == "htm") return "text/html";
+    if (extension == "txt") return "text/plain";
+    if (extension == "gif") return "image/gif";
+    if (extension == "jpg" || extension == "jpeg") return "image/jpeg";
+    if (extension == "png") return "image/png";
+    if (extension == "css") return "text/css";
+    if (extension == "js") return "application/javascript";
+    if (extension == "json") return "application/json";
+    if (extension == "xml") return "application/xml";
+    if (extension == "pdf") return "application/pdf";
+    if (extension == "zip") return "application/zip";
+    if (extension == "mp3") return "audio/mpeg";
+    if (extension == "mp4") return "video/mp4";
+    if (extension == "wav") return "audio/wav";
+    if (extension == "ico") return "image/x-icon";
 
-    // 查找扩展名对应的 MIME 类型
-    auto it = mime_types.find(extension);
-    if (it != mime_types.end()) {
-        return it->second; // 返回找到的 MIME 类型
-    }
-
-    // 如果没有找到，返回默认的二进制流类型
+    // 如果扩展名不匹配任何已知类型，则返回 "application/octet-stream"
     return "application/octet-stream";
 }
+
 
 // This is the final major function you need to write.
 
