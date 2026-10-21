@@ -1,5 +1,5 @@
-# C-Template
-Template for C programming for ECS 36C at Davis
+# C++ HTTP Server
 
-This consists of a simple Hello World program and a trivial Makefile
-with debugging turned on.
+A socket-based HTTP server with request parsing, route handlers, and static file responses.
+
+Course project built from the ECS 36C starter template at UC Davis.
